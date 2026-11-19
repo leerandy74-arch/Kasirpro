@@ -1,0 +1,6 @@
+{
+  "name": "KasirPro",
+  "description": "Aplikasi kasir POS multi-cabang real-time dengan manajemen stok otomatis, pembayaran QRIS, cetak struk Bluetooth, notifikasi WhatsApp, enkripsi E2EE, dan laporan Excel/PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

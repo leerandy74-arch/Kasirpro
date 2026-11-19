@@ -1,0 +1,297 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HARDENED PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function branchExists(userId, branchId) {
+      return exists(/databases/$(database)/documents/users/$(userId)/branches/$(branchId)) ||
+             existsAfter(/databases/$(database)/documents/users/$(userId)/branches/$(branchId));
+    }
+
+    // --- ENTITY VALIDATION BLUEPRINTS ---
+    function isValidWorkspace(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.storeName is string && data.storeName.size() >= 1 && data.storeName.size() <= 80 &&
+             data.e2eeSalt is string && data.e2eeSalt.size() >= 1 && data.e2eeSalt.size() <= 128 &&
+             data.e2eeKeyCheck is string && data.e2eeKeyCheck.size() >= 1 && data.e2eeKeyCheck.size() <= 256 &&
+             data.qrisMerchantId is string && data.qrisMerchantId.size() >= 1 && data.qrisMerchantId.size() <= 128 &&
+             data.qrisMerchantName is string && data.qrisMerchantName.size() >= 1 && data.qrisMerchantName.size() <= 80 &&
+             data.autoBackupIntervalHours is int && data.autoBackupIntervalHours >= 1 && data.autoBackupIntervalHours <= 168 &&
+             data.lastBackupEpochMs is int && data.lastBackupEpochMs >= 0 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidBranch(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.code is string && data.code.size() >= 1 && data.code.size() <= 20 &&
+             data.address is string && data.address.size() <= 200 &&
+             data.phone is string && data.phone.size() <= 30 &&
+             data.headquarters is bool &&
+             data.active is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidStaff(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.username is string && data.username.size() >= 1 && data.username.size() <= 40 &&
+             data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 80 &&
+             data.role in ['CENTRAL_ADMIN', 'BRANCH_ADMIN', 'CASHIER'] &&
+             isValidId(data.branchId) &&
+             data.passwordHash is string && data.passwordHash.size() >= 16 && data.passwordHash.size() <= 256 &&
+             data.passwordSalt is string && data.passwordSalt.size() >= 8 && data.passwordSalt.size() <= 128 &&
+             data.active is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidProduct(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             isValidId(data.branchId) &&
+             data.sku is string && data.sku.size() >= 1 && data.sku.size() <= 40 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 50 &&
+             (data.price is int || data.price is float) && data.price >= 0 &&
+             (data.costPrice is int || data.costPrice is float) && data.costPrice >= 0 &&
+             data.stock is int && data.stock >= 0 &&
+             data.minStock is int && data.minStock >= 0 &&
+             data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 20 &&
+             data.active is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidTransaction(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             isValidId(data.branchId) &&
+             data.branchName is string && data.branchName.size() >= 1 && data.branchName.size() <= 80 &&
+             data.receiptNumber is string && data.receiptNumber.size() >= 1 && data.receiptNumber.size() <= 40 &&
+             data.cashierId is string && data.cashierId.size() >= 1 && data.cashierId.size() <= 128 &&
+             data.cashierName is string && data.cashierName.size() >= 1 && data.cashierName.size() <= 80 &&
+             data.paymentMethod in ['QRIS', 'CASH', 'CARD', 'EWALLET'] &&
+             data.status in ['COMPLETED', 'VOIDED'] &&
+             (data.subtotal is int || data.subtotal is float) && data.subtotal >= 0 &&
+             (data.discount is int || data.discount is float) && data.discount >= 0 &&
+             (data.tax is int || data.tax is float) && data.tax >= 0 &&
+             (data.totalAmount is int || data.totalAmount is float) && data.totalAmount >= 0 &&
+             (data.paidAmount is int || data.paidAmount is float) && data.paidAmount >= 0 &&
+             (data.changeAmount is int || data.changeAmount is float) && data.changeAmount >= 0 &&
+             data.itemCount is int && data.itemCount >= 1 &&
+             data.encryptedPayload is string && data.encryptedPayload.size() >= 1 && data.encryptedPayload.size() <= 32768 &&
+             data.e2eeIv is string && data.e2eeIv.size() >= 1 && data.e2eeIv.size() <= 64 &&
+             data.e2eeVerified is bool &&
+             data.whatsappSent is bool &&
+             data.monthKey is string && data.monthKey.size() == 7 &&
+             data.dayKey is string && data.dayKey.size() == 10 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAuditLog(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             isValidId(data.branchId) &&
+             data.actorId is string && data.actorId.size() >= 1 && data.actorId.size() <= 128 &&
+             data.actorName is string && data.actorName.size() >= 1 && data.actorName.size() <= 80 &&
+             data.actorRole in ['CENTRAL_ADMIN', 'BRANCH_ADMIN', 'CASHIER', 'SYSTEM'] &&
+             data.actionType is string && data.actionType.size() >= 1 && data.actionType.size() <= 40 &&
+             data.summary is string && data.summary.size() >= 1 && data.summary.size() <= 300 &&
+             (!('encryptedDetail' in data) || (data.encryptedDetail is string && data.encryptedDetail.size() <= 4096)) &&
+             (!('e2eeIv' in data) || (data.e2eeIv is string && data.e2eeIv.size() <= 64)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidCloudBackup(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.backupType in ['AUTO', 'MANUAL'] &&
+             data.encryptedSnapshot is string && data.encryptedSnapshot.size() >= 1 && data.encryptedSnapshot.size() <= 500000 &&
+             data.e2eeIv is string && data.e2eeIv.size() >= 1 && data.e2eeIv.size() <= 64 &&
+             data.checksumSha256 is string && data.checksumSha256.size() == 64 &&
+             data.recordCount is int && data.recordCount >= 0 &&
+             data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 80 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    // --- WORKSPACE ROOT & SUBCOLLECTIONS ---
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'storeName', 'e2eeSalt', 'e2eeKeyCheck', 'qrisMerchantId', 'qrisMerchantName', 'autoBackupIntervalHours', 'lastBackupEpochMs', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'storeName', 'e2eeSalt', 'e2eeKeyCheck', 'qrisMerchantId', 'qrisMerchantName', 'autoBackupIntervalHours', 'lastBackupEpochMs', 'createdAt', 'updatedAt']) &&
+                       isValidWorkspace(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidWorkspace(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['storeName', 'e2eeSalt', 'e2eeKeyCheck', 'qrisMerchantId', 'qrisMerchantName', 'autoBackupIntervalHours', 'lastBackupEpochMs', 'updatedAt']);
+
+      allow delete: if false;
+
+      // 1. Branches
+      match /branches/{branchId} {
+        allow get: if isOwner(userId) && isValidId(branchId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(branchId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'code', 'address', 'phone', 'headquarters', 'active', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'code', 'address', 'phone', 'headquarters', 'active', 'createdAt', 'updatedAt']) &&
+                         isValidBranch(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(branchId) &&
+                         isValidBranch(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'code', 'address', 'phone', 'headquarters', 'active', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(branchId);
+      }
+
+      // 2. Staff Accounts (Role-Based Access & Password Management)
+      match /staff/{staffId} {
+        allow get: if isOwner(userId) && isValidId(staffId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(staffId) &&
+                         incoming().keys().hasAll(['userId', 'username', 'fullName', 'role', 'branchId', 'passwordHash', 'passwordSalt', 'active', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'username', 'fullName', 'role', 'branchId', 'passwordHash', 'passwordSalt', 'active', 'createdAt', 'updatedAt']) &&
+                         isValidStaff(incoming(), userId) &&
+                         branchExists(userId, incoming().branchId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(staffId) &&
+                         isValidStaff(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['passwordHash', 'passwordSalt', 'updatedAt'])) ||
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'role', 'branchId', 'active', 'updatedAt']) &&
+                            branchExists(userId, incoming().branchId)) ||
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'role', 'branchId', 'passwordHash', 'passwordSalt', 'active', 'updatedAt']) &&
+                            branchExists(userId, incoming().branchId))
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(staffId);
+      }
+
+      // 3. Products / Integrated Inventory
+      match /products/{productId} {
+        allow get: if isOwner(userId) && isValidId(productId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(productId) &&
+                         incoming().keys().hasAll(['userId', 'branchId', 'sku', 'name', 'category', 'price', 'costPrice', 'stock', 'minStock', 'unit', 'active', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'branchId', 'sku', 'name', 'category', 'price', 'costPrice', 'stock', 'minStock', 'unit', 'active', 'createdAt', 'updatedAt']) &&
+                         isValidProduct(incoming(), userId) &&
+                         branchExists(userId, incoming().branchId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(productId) &&
+                         isValidProduct(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action: Automatic Stock Deduction / Restock
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['stock', 'updatedAt'])) ||
+                           // Action: Product Catalog Edit
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['sku', 'name', 'category', 'price', 'costPrice', 'stock', 'minStock', 'unit', 'active', 'updatedAt']))
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(productId);
+      }
+
+      // 4. Real-Time POS Transactions (E2EE Encrypted Payload)
+      match /transactions/{transactionId} {
+        allow get: if isOwner(userId) && isValidId(transactionId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(transactionId) &&
+                         incoming().keys().hasAll(['userId', 'branchId', 'branchName', 'receiptNumber', 'cashierId', 'cashierName', 'paymentMethod', 'status', 'subtotal', 'discount', 'tax', 'totalAmount', 'paidAmount', 'changeAmount', 'itemCount', 'encryptedPayload', 'e2eeIv', 'e2eeVerified', 'whatsappSent', 'monthKey', 'dayKey', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'branchId', 'branchName', 'receiptNumber', 'cashierId', 'cashierName', 'paymentMethod', 'status', 'subtotal', 'discount', 'tax', 'totalAmount', 'paidAmount', 'changeAmount', 'itemCount', 'encryptedPayload', 'e2eeIv', 'e2eeVerified', 'whatsappSent', 'monthKey', 'dayKey', 'createdAt', 'updatedAt']) &&
+                         isValidTransaction(incoming(), userId) &&
+                         branchExists(userId, incoming().branchId);
+
+        // Terminal State Locking: VOIDED transactions cannot be modified
+        allow update: if isOwner(userId) &&
+                         isValidId(transactionId) &&
+                         isValidTransaction(incoming(), userId) &&
+                         existing().status != 'VOIDED' &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action: Mark WhatsApp notification sent
+                           (incoming().diff(existing()).affectedKeys().hasOnly(['whatsappSent', 'updatedAt'])) ||
+                           // Action: Void completed transaction
+                           (incoming().status == 'VOIDED' &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+                         );
+
+        allow delete: if false;
+      }
+
+      // 5. Immutable Activity Audit Logs
+      match /auditLogs/{logId} {
+        allow get: if isOwner(userId) && isValidId(logId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(logId) &&
+                         incoming().keys().hasAll(['userId', 'branchId', 'actorId', 'actorName', 'actorRole', 'actionType', 'summary', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'branchId', 'actorId', 'actorName', 'actorRole', 'actionType', 'summary', 'encryptedDetail', 'e2eeIv', 'createdAt']) &&
+                         isValidAuditLog(incoming(), userId);
+
+        allow update, delete: if false;
+      }
+
+      // 6. Encrypted Cloud Backups
+      match /cloudBackups/{backupId} {
+        allow get: if isOwner(userId) && isValidId(backupId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(backupId) &&
+                         incoming().keys().hasAll(['userId', 'backupType', 'encryptedSnapshot', 'e2eeIv', 'checksumSha256', 'recordCount', 'createdBy', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'backupType', 'encryptedSnapshot', 'e2eeIv', 'checksumSha256', 'recordCount', 'createdBy', 'createdAt']) &&
+                         isValidCloudBackup(incoming(), userId);
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(backupId);
+      }
+    }
+  }
+}

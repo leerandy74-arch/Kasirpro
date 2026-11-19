@@ -1,0 +1,242 @@
+{
+  "entities": {
+    "WorkspaceConfig": {
+      "title": "WorkspaceConfig",
+      "description": "Merchant store configuration, E2EE key verifier, QRIS merchant profile, and automated cloud backup settings.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Authenticated Firebase owner UID" },
+        "storeName": { "type": "string", "description": "Merchant brand name" },
+        "e2eeSalt": { "type": "string", "description": "Base64 salt for E2EE vault key derivation" },
+        "e2eeKeyCheck": { "type": "string", "description": "SHA-256 verifier hash of the E2EE key" },
+        "qrisMerchantId": { "type": "string", "description": "National Merchant ID (NMID) for QRIS" },
+        "qrisMerchantName": { "type": "string", "description": "Display merchant name on QRIS payload" },
+        "autoBackupIntervalHours": { "type": "integer", "description": "Periodic cloud backup interval in hours" },
+        "lastBackupEpochMs": { "type": "integer", "description": "Timestamp of last cloud backup in epoch millis" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update" }
+      },
+      "required": [
+        "userId",
+        "storeName",
+        "e2eeSalt",
+        "e2eeKeyCheck",
+        "qrisMerchantId",
+        "qrisMerchantName",
+        "autoBackupIntervalHours",
+        "lastBackupEpochMs",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Branch": {
+      "title": "Branch",
+      "description": "Retail branch store monitored by Central Admin in real-time.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "headquarters": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "code", "address", "phone", "headquarters", "active", "createdAt", "updatedAt"]
+    },
+    "StaffAccount": {
+      "title": "StaffAccount",
+      "description": "Role-based staff credentials (Central Admin, Branch Admin, Cashier) with PBKDF2-HMAC-SHA256 hashed passwords.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "fullName": { "type": "string" },
+        "role": { "type": "string", "enum": ["CENTRAL_ADMIN", "BRANCH_ADMIN", "CASHIER"] },
+        "branchId": { "type": "string" },
+        "passwordHash": { "type": "string" },
+        "passwordSalt": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "username",
+        "fullName",
+        "role",
+        "branchId",
+        "passwordHash",
+        "passwordSalt",
+        "active",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Branch inventory SKU with automated stock tracking and low-stock threshold.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "branchId": { "type": "string" },
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "costPrice": { "type": "number" },
+        "stock": { "type": "integer" },
+        "minStock": { "type": "integer" },
+        "unit": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "branchId",
+        "sku",
+        "name",
+        "category",
+        "price",
+        "costPrice",
+        "stock",
+        "minStock",
+        "unit",
+        "active",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PosTransaction": {
+      "title": "PosTransaction",
+      "description": "Real-time POS transaction with AES-256-GCM end-to-end encrypted customer and item payload.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "branchId": { "type": "string" },
+        "branchName": { "type": "string" },
+        "receiptNumber": { "type": "string" },
+        "cashierId": { "type": "string" },
+        "cashierName": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["QRIS", "CASH", "CARD", "EWALLET"] },
+        "status": { "type": "string", "enum": ["COMPLETED", "VOIDED"] },
+        "subtotal": { "type": "number" },
+        "discount": { "type": "number" },
+        "tax": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "changeAmount": { "type": "number" },
+        "itemCount": { "type": "integer" },
+        "encryptedPayload": { "type": "string" },
+        "e2eeIv": { "type": "string" },
+        "e2eeVerified": { "type": "boolean" },
+        "whatsappSent": { "type": "boolean" },
+        "monthKey": { "type": "string" },
+        "dayKey": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "branchId",
+        "branchName",
+        "receiptNumber",
+        "cashierId",
+        "cashierName",
+        "paymentMethod",
+        "status",
+        "subtotal",
+        "discount",
+        "tax",
+        "totalAmount",
+        "paidAmount",
+        "changeAmount",
+        "itemCount",
+        "encryptedPayload",
+        "e2eeIv",
+        "e2eeVerified",
+        "whatsappSent",
+        "monthKey",
+        "dayKey",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable real-time activity audit trail for cashiers, branch admins, and central admin.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "branchId": { "type": "string" },
+        "actorId": { "type": "string" },
+        "actorName": { "type": "string" },
+        "actorRole": { "type": "string", "enum": ["CENTRAL_ADMIN", "BRANCH_ADMIN", "CASHIER", "SYSTEM"] },
+        "actionType": { "type": "string" },
+        "summary": { "type": "string" },
+        "encryptedDetail": { "type": "string" },
+        "e2eeIv": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "branchId", "actorId", "actorName", "actorRole", "actionType", "summary", "createdAt"]
+    },
+    "CloudBackupRecord": {
+      "title": "CloudBackupRecord",
+      "description": "Encrypted periodic or manual full-workspace cloud backup snapshot.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "backupType": { "type": "string", "enum": ["AUTO", "MANUAL"] },
+        "encryptedSnapshot": { "type": "string" },
+        "e2eeIv": { "type": "string" },
+        "checksumSha256": { "type": "string" },
+        "recordCount": { "type": "integer" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId",
+        "backupType",
+        "encryptedSnapshot",
+        "e2eeIv",
+        "checksumSha256",
+        "recordCount",
+        "createdBy",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/WorkspaceConfig" },
+      "description": "Root merchant workspace document owned by authenticated Google user."
+    },
+    "/users/{userId}/branches/{branchId}": {
+      "schema": { "$ref": "#/entities/Branch" },
+      "description": "Store branches for multi-branch real-time POS operations."
+    },
+    "/users/{userId}/staff/{staffId}": {
+      "schema": { "$ref": "#/entities/StaffAccount" },
+      "description": "Role-based staff accounts (Central Admin, Branch Admin, Cashier)."
+    },
+    "/users/{userId}/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Product catalog and automatic stock inventory per branch."
+    },
+    "/users/{userId}/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/PosTransaction" },
+      "description": "Real-time transactions with AES-256-GCM E2EE encrypted payloads."
+    },
+    "/users/{userId}/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable activity audit log for admin monitoring."
+    },
+    "/users/{userId}/cloudBackups/{backupId}": {
+      "schema": { "$ref": "#/entities/CloudBackupRecord" },
+      "description": "Periodic and manual AES-256-GCM encrypted cloud backup snapshots."
+    }
+  }
+}
